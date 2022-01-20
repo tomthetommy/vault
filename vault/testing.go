@@ -2146,7 +2146,7 @@ func (m *mockBuiltinRegistry) Get(name string, pluginType consts.PluginType) (fu
 		return nil, false
 	}
 	if name == "postgresql-database-plugin" {
-		return dbPostgres.New, true
+		return toFunc(dbPostgres.New), true
 	}
 	return dbMysql.New(dbMysql.DefaultUserNameTemplate), true
 }
@@ -2283,4 +2283,10 @@ func RetryUntil(t testing.T, timeout time.Duration, f func() error) {
 		time.Sleep(100 * time.Millisecond)
 	}
 	t.Fatalf("did not complete before deadline, err: %v", err)
+}
+
+func toFunc(ifc interface{}) func() (interface{}, error) {
+	return func() (interface{}, error) {
+		return ifc, nil
+	}
 }
