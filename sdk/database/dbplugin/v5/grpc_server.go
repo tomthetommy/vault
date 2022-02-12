@@ -19,8 +19,14 @@ var _ proto.DatabaseServer = gRPCServer{}
 type gRPCServer struct {
 	proto.UnimplementedDatabaseServer
 
-	factoryFunc func() (interface{}, error)
+	// holds the non-multiplexed Database
+	// when this is set the plugin does not support multiplexing
+	singleImpl Database
+
+	// instances holds the multiplexed Databases
 	instances   map[string]Database
+	factoryFunc func() (interface{}, error)
+
 	sync.RWMutex
 }
 
@@ -47,6 +53,10 @@ func (g gRPCServer) getOrCreateDatabase(ctx context.Context) (Database, error) {
 	g.Lock()
 	defer g.Unlock()
 
+	if g.singleImpl != nil {
+		return g.singleImpl, nil
+	}
+
 	id, err := getMultiplexIDFromContext(ctx)
 	if err != nil {
 		return nil, err
@@ -69,6 +79,10 @@ func (g gRPCServer) getOrCreateDatabase(ctx context.Context) (Database, error) {
 
 // getDatabaseInternal returns the database but does not hold a lock
 func (g gRPCServer) getDatabaseInternal(ctx context.Context) (Database, error) {
+	if g.singleImpl != nil {
+		return g.singleImpl, nil
+	}
+
 	id, err := getMultiplexIDFromContext(ctx)
 	if err != nil {
 		return nil, err
@@ -281,11 +295,14 @@ func (g gRPCServer) Close(ctx context.Context, _ *proto.Empty) (*proto.Empty, er
 		return &proto.Empty{}, status.Errorf(codes.Internal, "unable to close database plugin: %s", err)
 	}
 
-	id, err := getMultiplexIDFromContext(ctx)
-	if err != nil {
-		return nil, err
+	if g.singleImpl == nil {
+		// only cleanup instances map when multiplexing is supported
+		id, err := getMultiplexIDFromContext(ctx)
+		if err != nil {
+			return nil, err
+		}
+		delete(g.instances, id)
 	}
-	delete(g.instances, id)
 
 	return &proto.Empty{}, nil
 }
