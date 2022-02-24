@@ -12,10 +12,11 @@ import (
 	"encoding/pem"
 	"errors"
 	"fmt"
-	"golang.org/x/crypto/ed25519"
 	"reflect"
 	"strings"
 	"time"
+
+	"golang.org/x/crypto/ed25519"
 
 	"github.com/hashicorp/vault/sdk/helper/certutil"
 
@@ -109,7 +110,7 @@ func pathSignSelfIssued(b *backend) *framework.Path {
 				Type:        framework.TypeString,
 				Description: `PEM-format self-issued certificate to be signed.`,
 			},
-			"require_matching_certificate_algorithms": &framework.FieldSchema{
+			"require_matching_certificate_algorithms": {
 				Type:        framework.TypeBool,
 				Default:     false,
 				Description: `If true, require the public key algorithm of the signer to match that of the self issued certificate.`,
@@ -267,23 +268,25 @@ func (b *backend) pathCASignIntermediate(ctx context.Context, req *logical.Reque
 	}
 
 	role := &roleEntry{
-		OU:                    data.Get("ou").([]string),
-		Organization:          data.Get("organization").([]string),
-		Country:               data.Get("country").([]string),
-		Locality:              data.Get("locality").([]string),
-		Province:              data.Get("province").([]string),
-		StreetAddress:         data.Get("street_address").([]string),
-		PostalCode:            data.Get("postal_code").([]string),
-		TTL:                   time.Duration(data.Get("ttl").(int)) * time.Second,
-		AllowLocalhost:        true,
-		AllowAnyName:          true,
-		AllowIPSANs:           true,
-		EnforceHostnames:      false,
-		KeyType:               "any",
-		AllowedURISANs:        []string{"*"},
-		AllowedSerialNumbers:  []string{"*"},
-		AllowExpirationPastCA: true,
+		OU:                        data.Get("ou").([]string),
+		Organization:              data.Get("organization").([]string),
+		Country:                   data.Get("country").([]string),
+		Locality:                  data.Get("locality").([]string),
+		Province:                  data.Get("province").([]string),
+		StreetAddress:             data.Get("street_address").([]string),
+		PostalCode:                data.Get("postal_code").([]string),
+		TTL:                       time.Duration(data.Get("ttl").(int)) * time.Second,
+		AllowLocalhost:            true,
+		AllowAnyName:              true,
+		AllowIPSANs:               true,
+		AllowWildcardCertificates: new(bool),
+		EnforceHostnames:          false,
+		KeyType:                   "any",
+		AllowedURISANs:            []string{"*"},
+		AllowedSerialNumbers:      []string{"*"},
+		AllowExpirationPastCA:     true,
 	}
+	*role.AllowWildcardCertificates = true
 
 	if cn := data.Get("common_name").(string); len(cn) == 0 {
 		role.UseCSRCommonName = true
